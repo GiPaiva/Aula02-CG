@@ -35,10 +35,12 @@ static const char* fragmentShader = "                                           
 #version 330                                                                               \n\
                                                                                            \n\
 // diferente da entrada por layout, uniform é uma entrada em tempo de execução             \n\
-uniform in vec3 triColor;																   \n\
+uniform vec3 triColor;																       \n\
+// saída do fragment shader, a cor final do pixel na tela                                  \n\
+out vec4 color;                                                                            \n\
                                                                                            \n\
 void main() {                                                                              \n\
-	color = vec3(triColor, 1.0);                                                           \n\
+	color = vec4(triColor, 1.0);                                                           \n\
 }                                                                                          \n\
 ";
 
@@ -63,8 +65,14 @@ void create_triangle() {
 		// agora tudo o que vamos criar será nesse buffer
 		glBindBuffer(GL_ARRAY_BUFFER, VBO); // a partir desse momento estamos modificando esse buffer
 			// agora vamos colocar os dados dentro desse buffer
-			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); // explicando onde estão os dados
+			// GL_array_buffer é o tipo do buffer, 
+			// sizeof é o tamanho do buffer, vertices é o ponteiro para os dados que queremos colocar no buffer, 
+			// GL_STATIC_DRAW é a forma como vamos usar esse buffer (static porque não vamos mudar esses dados)
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); 
 			// agora vamos explicar como esses dados estão organizados
+			// 0 é o layout(location=0) que criamos lá em cima no vertex shader, 2 é porque são 2 posições por vértice (x e y), 
+			// gl_FLOAT é o tipo de dado, GL_FALSE é se os dados estão normalizados ou não (não estão), 
+			// 0 é o espaçamento entre os dados (0 porque são dados contínuos), 0 é o offset (0 porque começam do início)
 			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0); // explicando como interpretar esses dados
 			// habilitar o atributo que criamos lá em cima
 			glEnableVertexAttribArray(0);  // location
@@ -80,24 +88,31 @@ void add_shader(GLuint program, const char* shaderCode, GLenum type) {
 
 	// converte char para glchar
 	const GLchar* code[1];
+	// coloca o código do shader na primeira posição do array
 	code[0] = shaderCode;
+
+
 	glShaderSource(_shader, 1, code, NULL);
 	glCompileShader(_shader);
 
 	// tratar os erros
 
+	// pegando o status da compilação
 	glAttachShader(program, _shader);
 }
 
+// função para criar o programa (shader)
 void add_program() {
 	shaderProgram = glCreateProgram();
 	if (!shaderProgram) {
 		cout << "Erro: falha ao criar o programa!";
 	}
 
+	// adicionando os shaders ao programa
 	add_shader(shaderProgram, vertexShader, GL_VERTEX_SHADER);
 	add_shader(shaderProgram, fragmentShader, GL_FRAGMENT_SHADER);
 
+	// linkando o programa, a execução
 	glLinkProgram(shaderProgram);
 }
 
@@ -117,9 +132,10 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); // versão máxima permitida 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3); // versão mínima
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // somente as funções core
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // qual a precisão de ponto flutuante que vamos usar, precisão da placa
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // qual a precisão de ponto flutuante que vamos usar, precisão da placa, deixando compativel com versões futuras e anteriores
 
 	// criação de janela 
+	// NULL, NULL são para monitor, se usa o monitor principal e share, que não vamos usar precisar usar agora
 	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Window", NULL, NULL);
 	if (!window) {
 		cout << "Erro: Não foi possível criar a janela";
@@ -134,7 +150,7 @@ int main() {
 	glfwMakeContextCurrent(window); // tornando essa janela como principal
 
 	//iniciando o Glew
-	glewExperimental = GLU_TRUE;
+	glewExperimental = GL_TRUE;
 	if (glewInit() != GLEW_OK) {
 		cout << "Erro: não foi possível iniciar o glew";
 		glfwDestroyWindow(window);
@@ -142,12 +158,43 @@ int main() {
 		return -1;
 	}
 
+	// 0, 0 é onde a janela será renderizada, ou seja apartir do centro da tela, passando a largura e altura da tela
 	glViewport(0, 0, bufferWidth, bufferHeight);
 
+	create_triangle(); // criando o triângulo
+	add_program(); // criando o programa
+	
 	while (!glfwWindowShouldClose(window)) {
-		glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
+		// cor de fundo
+		glClearColor(0.29f, 0.0f, 0.51f, 1.0f); // RGBA indigo
+		// glfwPollEvents() pega os eventos do teclado e mouse
 		glfwPollEvents();
+		// limpar a tela com a cor de fundo
 		glClear(GL_COLOR_BUFFER_BIT);
+
+
+		//Alterando a cor do triângulo
+		// Guardando a entrada do programa de cor, na memoria RAM
+		GLint uniformColor = glGetUniformLocation(shaderProgram, "triColor"); // pegando o endereço da variável triColor do fragment shader
+		// 3f é porque são 3 floats (R, G, B)
+		// como colocando um vec tres lá em cima a aqui tambem tem que ser 3
+		float r = rand() % 100 / 100.0f; // gerando um número aleatório entre 0 e 1
+		float g = rand() % 100 / 100.0f; // gerando um número aleatório entre 0 e 1
+		float b = rand() % 100 / 100.0f; // gerando um número aleatório entre 0 e 1
+		glUniform3f(uniformColor, r, g, b); // alterando a cor do triângulo para uma cor randomica em tempo de execução (fica trocando a cada clock)
+
+
+		//Desenhado o triângulo
+		glUseProgram(shaderProgram); // dizendo qual programa vamos usar
+
+		glBindVertexArray(VAO); // dizendo qual VAO vamos usar
+			glDrawArrays(GL_TRIANGLES, 0, 3); // desenhando o triângulo, GL_TRIANGLES é o tipo de desenho, Começando na posição 0 do array, 3 é a quantidade de vértices
+		glBindVertexArray(0); // desativando o VAO
+
+
+
+
+		// desenhar
 		glfwSwapBuffers(window);
 	}
 
