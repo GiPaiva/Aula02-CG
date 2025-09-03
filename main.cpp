@@ -2,6 +2,10 @@
 #include <GL/glew.h>
 #include <GLFW//glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 using namespace std;
 
 const GLint WIDTH = 800, HEIGHT = 600;
@@ -13,35 +17,77 @@ GLuint VAO, VBO, shaderProgram;
 
 // aqui estamos fazendo um programa (shader) em GLSL
 
+// Radiano
+float toRadian = 3.14159265358979323846 / 180.0f; // valor de pi dividido por 180 graus (conversão de graus para radiano)
+
+
+float direction = 0.0f; // direção do movimento do triângulo
+float directionSize = 0.01f; // tamanho do movimento do triângulo
+
+float triOffsetSize = 0.2f, triOffsetSizeMax = 1.2f, triOffsetSizeMin = 0.2f, triOffsetSizeIncrement = 0.1f; // tamanho do movimento do triângulo
+float triCurrentAngle = 0.0f, triAngleIncrement = 1.0f; // ângulo atual do triângulo e o incremento do ângulo (velocidade de rotação)
+
+
+// valor atual X e Y, maximo, minimo do deslocamento
+float triOffset = 0.0f, triMaxOffset = 0.7f, triMinOffset = -0.7f;
+float triIncrement = 0.01f; // valor que vamos somar a cada frame
+
+
+// Enquando estiver falso vamos somando
+//bool directionX = false;
+//bool directionY = false;
+//float triOffsetX = 0.0f, triOffsetY = 0.0f, triMaxOffset = 0.7f, triMinOffset = -0.7f;
+//float triIncrementX = 0.01f;  // valor que vamos somar a cada frame
+//float triIncrementY = 0.005f; // valor que vamos somar a cada frame
+
 // shader para renderizar pontos na tela
-static const char* vertexShader = "                                                        \n\
-#version 330                                                                               \n\
-                                                                                           \n\
-                                                                                           \n\
-// passando um argumento para o inicio do programa (args do C//                            \n\
-// estou passando um argumento de entrada na primeira posiçâo                              \n\
-// esse argumento deve ser um vetor de duas posições                                       \n\
-layout(location=0) in vec2 pos;                                                            \n\
-                                                                                           \n\
-void main() {                                                                              \n\
-	gl_Position = vec4(pos.x, pos.y, 0.0, 1.0);                                            \n\
-}                                                                                          \n\
+//static const char* vertexShader = "                           \n\
+//#version 330                                                   \n\
+//                                                                \n\
+//                                                                 \n\
+//// passando um argumento para o inicio do programa (args do C//   \n\
+//// estou passando um argumento de entrada na primeira posiçâo      \n\
+//// esse argumento deve ser um vetor de duas posições                \n\
+//layout(location=0) in vec2 pos;                                      \n\
+//uniform float posX;                                                   \n\
+//uniform float posY;                                                    \n\
+//                                                                        \n\
+//void main() {                                                            \n\
+//	gl_Position = vec4(pos.x + posX, pos.y + posY, 0.0, 1.0);             \n\
+//}                                                                          \n\
+//";
+
+// shader para renderizar pontos na tela
+static const char* vertexShader = "                           \n\
+#version 330                                                   \n\
+                                                                \n\
+                                                                 \n\
+// passando um argumento para o inicio do programa (args do C//   \n\
+// estou passando um argumento de entrada na primeira posiçâo      \n\
+// esse argumento deve ser um vetor de duas posições                \n\
+layout(location=0) in vec2 pos;                                      \n\
+uniform mat4 model;                                                   \n\
+                                                                       \n\
+void main() {                                                           \n\
+	gl_Position = model * vec4(pos.x, pos.y, 0.0, 1.0);                  \n\
+}                                                                         \n\
 ";
+
 
 // fragment pode ser lido como "a partir desse ponto o que faço com ele?"
 // shader para atribuir cores aos pontos
 
-static const char* fragmentShader = "                                                      \n\
-#version 330                                                                               \n\
-                                                                                           \n\
-// diferente da entrada por layout, uniform é uma entrada em tempo de execução             \n\
-uniform vec3 triColor;																       \n\
-// saída do fragment shader, a cor final do pixel na tela                                  \n\
-out vec4 color;                                                                            \n\
-                                                                                           \n\
-void main() {                                                                              \n\
-	color = vec4(triColor, 1.0);                                                           \n\
-}                                                                                          \n\
+static const char* fragmentShader = "                                           \n\
+#version 330                                                                     \n\
+                                                                                  \n\
+// diferente da entrada por layout, uniform é uma entrada em tempo de execução     \n\
+uniform vec3 triColor;															    \n\
+// saída do fragment shader, a cor final do pixel na tela                            \n\
+out vec4 color;                                                                       \n\
+                                                                                       \n\
+void main() {                                                                           \n\
+	color = vec4(triColor, 1.0);                                                         \n\
+}                                                                                         \n\
 ";
 
 void create_triangle() {
@@ -182,6 +228,80 @@ int main() {
 		float g = rand() % 100 / 100.0f; // gerando um número aleatório entre 0 e 1
 		float b = rand() % 100 / 100.0f; // gerando um número aleatório entre 0 e 1
 		glUniform3f(uniformColor, r, g, b); // alterando a cor do triângulo para uma cor randomica em tempo de execução (fica trocando a cada clock)
+
+
+		//// Movimenta o triangulo
+		//GLint uniformPosX = glGetUniformLocation(shaderProgram, "posX"); // pegando o endereço da variável posX do fragment shader
+		//GLint uniformPosY = glGetUniformLocation(shaderProgram, "posY"); // pegando o endereço da variável posY do fragment shader
+		//glUniform1f(uniformPosX, triOffsetX); // alterando a posição do triângulo
+		//glUniform1f(uniformPosY, triOffsetY); // alterando a posição do triângulo
+
+		//// verificando os limites do deslocamento
+		//if (directionX) {
+		//	triOffsetX += triIncrementX; // somando o incremento ao valor atual
+		//}
+		//else {
+		//	triOffsetX -= triIncrementX; // subtraindo o incremento ao valor atual
+		//}
+
+		//if(directionY) {
+		//	triOffsetY += triIncrementY; // somando o incremento ao valor atual
+		//}
+		//else {
+		//	triOffsetY -= triIncrementY; // subtraindo o incremento ao valor atual
+		//}
+		//
+		//// se chegar no máximo inverte a direção ou se chegar no mínimo inverte a direção
+		//if (triOffsetX >= triMaxOffset || triOffsetX <= triMinOffset) {
+		//	directionX = !directionX; 
+		//}
+		//
+		//if (triOffsetY >= triMaxOffset || triOffsetY <= triMinOffset) {
+		//	directionY = !directionY;
+		//}
+
+
+		// Faz o triângulo girar e aumentar e diminuir de tamanho
+		// Rotação
+		if (!direction) {
+			triOffset += triIncrement;
+		}
+		else {
+			triOffset -= triIncrement;
+		}
+
+		if (triOffset >= triMaxOffset || triOffset <= triMinOffset) {
+			direction = !direction;
+		}
+
+		triCurrentAngle += triAngleIncrement; // somando o incremento ao valor atual
+		if (triCurrentAngle >= 360) {
+			triCurrentAngle = 0;
+		}
+
+		// Tamanho
+		if (!directionSize) {
+			triOffsetSize += triOffsetSizeIncrement;
+		}
+		else {
+			triOffsetSize -= triOffsetSizeIncrement;
+		}
+
+		if (triOffsetSize >= triOffsetSizeMax || triOffsetSize <= triOffsetSizeMin) {
+			directionSize = !directionSize;
+		}
+
+		//printf("Offset: %f Angle: %f Size: %f \n", triOffset, triCurrentAngle, triOffsetSize);
+		GLint uniformModel = glGetUniformLocation(shaderProgram, "model"); // pegando o endereço da variável model do vertex shader
+		glm::mat4 model(1.0f); // criando uma matriz 4x4 identidade
+
+		model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f)); // movendo o triângulo
+		model = glm::scale(model, glm::vec3(triOffsetSize, triOffsetSize, 0.0f)); // escalonando o triângulo
+		model = glm::rotate(model, triCurrentAngle * toRadian, glm::vec3(1.0f, 1.0f, 1.0f)); // rotacionando o triângulo
+
+
+		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); // enviando a matriz para o vertex shader
+
 
 
 		//Desenhado o triângulo
