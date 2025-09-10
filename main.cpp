@@ -14,6 +14,7 @@ const GLint WIDTH = 800, HEIGHT = 600;
 // shaderProgram é qual programa estou rodando 
 // todo programa pode ser chamado de shader
 GLuint VAO, VBO, shaderProgram;
+GLuint IBO; // Index Buffer Object, é um buffer que guarda os índices dos vértices que formam os triângulos, faz o mapeamento de que ponto liga com qual ponto
 
 // aqui estamos fazendo um programa (shader) em GLSL
 
@@ -69,39 +70,48 @@ static const char* vertexShader = "                           \n\
 // esse argumento deve ser um vetor de duas posições                \n\
 layout(location=0) in vec3 pos;                                      \n\
 uniform mat4 model;                                                   \n\
-out vec4 vCol;														   \n\
-                                                                        \n\
-void main() {                                                            \n\
-	gl_Position = model * vec4(pos, 1.0);                                 \n\
-	// passando a cor para o fragment shader							   \n\
-	vCol = vec4(clamp(pos, 0.0f, 1.0f), 1.0);						        \n\
-}                                                                            \n\
+uniform mat4 projection;                                               \n\
+out vec4 vCol;														    \n\
+                                                                         \n\
+void main() {                                                             \n\
+	gl_Position = projection * model * vec4(pos, 1.0);                     \n\
+	// passando a cor para o fragment shader						   	    \n\
+	vCol = vec4(clamp(pos, 0.0f, 1.0f), 1.0);						         \n\
+}                                                                             \n\
 ";
 
 
 // fragment pode ser lido como "a partir desse ponto o que faço com ele?"
 // shader para atribuir cores aos pontos
 
-static const char* fragmentShader = "                                           \n\
-#version 330                                                                     \n\
-                                                                                  \n\
-in vec4 vCol; // recebendo a cor do vertex shader								   \n\
-																					\n\
-// diferente da entrada por layout, uniform é uma entrada em tempo de execução       \n\
-uniform vec3 triColor;															      \n\
-// saída do fragment shader, a cor final do pixel na tela                              \n\
-out vec4 color;                                                                         \n\
-                                                                                         \n\
-void main() {                                                                             \n\
-	color = vCol;                                                                          \n\
-}                                                                                           \n\
+static const char* fragmentShader = "                                             \n\
+#version 330                                                                       \n\
+                                                                                    \n\
+in vec4 vCol; // recebendo a cor do vertex shader							     	 \n\
+																					  \n\
+// diferente da entrada por layout, uniform é uma entrada em tempo de execução         \n\
+uniform vec3 triColor;															        \n\
+// saída do fragment shader, a cor final do pixel na tela                                \n\
+out vec4 color;                                                                           \n\
+                                                                                           \n\
+void main() {                                                                               \n\
+	color = vCol;                                                                            \n\
+}                                                                                             \n\
 ";
 
 void create_triangle() {
+	unsigned int indices[] = {
+		0, 1, 2, // BASE
+		0, 1, 3, // ESQUERDA
+		0, 2, 3, // DIREITA
+		1, 2, 3  // FRENTE
+	};
+
 	GLfloat vertices[] = {   // nosso buffer de vertíces
-		 0.0f ,  1.0f, 0.0f, // vertice 1 
-		-1.0f , -1.0f, 0.0f, // vertice 2
-		 1.0f , -1.0f, 0.0f  // vertice 3
+		 0.0f ,  1.0f, 0.0f, // vertice 1 , posição 0
+		-1.0f , -1.0f, 0.0f, // vertice 2 , posição 1
+		 1.0f , -1.0f, 0.0f, // vertice 3 , posição 2
+		 0.0f,  0.0f,  1.0f  // vertice 4 , posição 3
 	};
 
 	// iniciar um VAO
@@ -113,25 +123,31 @@ void create_triangle() {
 	// agora tudo o que vamos criar será nesse espaço de memória como os pontos da nossa tela
 	glBindVertexArray(VAO);
 
-		// iniciar um VBO
-		glGenBuffers(1, &VBO); // alocar um buffer
-		// agora tudo o que vamos criar será nesse buffer
-		glBindBuffer(GL_ARRAY_BUFFER, VBO); // a partir desse momento estamos modificando esse buffer
-			// agora vamos colocar os dados dentro desse buffer
-			// GL_array_buffer é o tipo do buffer, 
-			// sizeof é o tamanho do buffer, vertices é o ponteiro para os dados que queremos colocar no buffer, 
-			// GL_STATIC_DRAW é a forma como vamos usar esse buffer (static porque não vamos mudar esses dados)
-			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); 
-			// agora vamos explicar como esses dados estão organizados
-			// 0 é o layout(location=0) que criamos lá em cima no vertex shader, 3 é porque são 3 posições por vértice (x, y e z), 
-			// gl_FLOAT é o tipo de dado, GL_FALSE é se os dados estão normalizados ou não (não estão), 
-			// 0 é o espaçamento entre os dados (0 porque são dados contínuos), 0 é o offset (0 porque começam do início)
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // explicando como interpretar esses dados
-			// habilitar o atributo que criamos lá em cima
-			glEnableVertexAttribArray(0);  // location
+	glGenBuffers(1, &IBO); // alocar um buffer
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO); // a partir desse momento estamos modificando esse buffer
+		// GL_ELEMENT_ARRAY_BUFFER é o tipo do buffer, sizeof é o tamanho do buffer, indices é o ponteiro para os dados que queremos colocar no buffer, Gl_STATIC_DRAW é a forma como vamos usar esse buffer (static porque não vamos mudar esses dados)
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); // colocando os dados dentro do buffer
 
-		// deixar de apontar para o VAO e VBO
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+			// iniciar um VBO
+			glGenBuffers(1, &VBO); // alocar um buffer
+			// agora tudo o que vamos criar será nesse buffer
+			glBindBuffer(GL_ARRAY_BUFFER, VBO); // a partir desse momento estamos modificando esse buffer
+				// agora vamos colocar os dados dentro desse buffer
+				// GL_array_buffer é o tipo do buffer, 
+				// sizeof é o tamanho do buffer, vertices é o ponteiro para os dados que queremos colocar no buffer, 
+				// GL_STATIC_DRAW é a forma como vamos usar esse buffer (static porque não vamos mudar esses dados)
+				glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); 
+				// agora vamos explicar como esses dados estão organizados
+				// 0 é o layout(location=0) que criamos lá em cima no vertex shader, 3 é porque são 3 posições por vértice (x, y e z), 
+				// gl_FLOAT é o tipo de dado, GL_FALSE é se os dados estão normalizados ou não (não estão), 
+				// 0 é o espaçamento entre os dados (0 porque são dados contínuos), 0 é o offset (0 porque começam do início)
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // explicando como interpretar esses dados
+				// habilitar o atributo que criamos lá em cima
+				glEnableVertexAttribArray(0);  // location
+
+			// deixar de apontar para o VAO e VBO
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 }
 
@@ -217,6 +233,13 @@ int main() {
 	create_triangle(); // criando o triângulo
 	add_program(); // criando o programa
 	
+	// glm::perspective cria uma matriz de projeção
+	// onde 45.0f é o campo de visão e a angulação (FOV), 
+	// bufferWidth/bufferHeight é a proporção da tela, 
+	// 0.1f é a distância mínima que a câmera enxerga, o quão perto será renderizado, 
+	// 100.0f é a distância máxima que a câmera enxerga, o quão longe será renderizado,
+	glm::mat4 projection = glm::perspective(45.0f, (GLfloat)bufferWidth / (GLfloat)bufferHeight, 0.1f, 100.0f); // criando a matriz de projeção
+
 	while (!glfwWindowShouldClose(window)) {
 		// cor de fundo
 		glClearColor(0.29f, 0.0f, 0.51f, 1.0f); // RGBA indigo
@@ -300,14 +323,16 @@ int main() {
 
 		//printf("Offset: %f Angle: %f Size: %f \n", triOffset, triCurrentAngle, triOffsetSize);
 		GLint uniformModel = glGetUniformLocation(shaderProgram, "model"); // pegando o endereço da variável model do vertex shader
+		GLint uniformProjection = glGetUniformLocation(shaderProgram, "projection"); // pegando o endereço da variável model do vertex shader
 		glm::mat4 model(1.0f); // criando uma matriz 4x4 identidade
 
-		model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f)); // movendo o triângulo
-		model = glm::scale(model, glm::vec3(triOffsetSize, triOffsetSize, 0.0f)); // escalonando o triângulo
-		model = glm::rotate(model, triCurrentAngle * toRadian, glm::vec3(1.0f, 1.0f, 1.0f)); // rotacionando o triângulo
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f)); // movendo o triângulo
+		model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f)); // escalonando o triângulo
+		model = glm::rotate(model, triCurrentAngle * toRadian, glm::vec3(0.7f, 0.5f, 1.0f)); // rotacionando o triângulo
 
 
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); // enviando a matriz para o vertex shader
+		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection)); // enviando a matriz para o vertex shader
 
 
 
@@ -315,8 +340,14 @@ int main() {
 		glUseProgram(shaderProgram); // dizendo qual programa vamos usar
 
 		glBindVertexArray(VAO); // dizendo qual VAO vamos usar
-			glDrawArrays(GL_TRIANGLES, 0, 3); // desenhando o triângulo, GL_TRIANGLES é o tipo de desenho, Começando na posição 0 do array, 3 é a quantidade de vértices
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO); // dizendo qual IBO vamos usar
+				glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0); // desenhando o triângulo, GL_TRIANGLES é o tipo de desenho, 3 é a quantidade de vértices, GL_UNSIGNED_INT é o tipo dos índices, 0 é o offset
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0); // desativando o VAO
+
+		//glBindVertexArray(VAO); // dizendo qual VAO vamos usar
+		//	glDrawArrays(GL_TRIANGLES, 0, 3); // desenhando o triângulo, GL_TRIANGLES é o tipo de desenho, Começando na posição 0 do array, 3 é a quantidade de vértices
+		//glBindVertexArray(0); // desativando o VAO
 
 
 
