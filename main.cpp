@@ -69,10 +69,13 @@ static const char* vertexShader = "                           \n\
 // esse argumento deve ser um vetor de duas posições                \n\
 layout(location=0) in vec3 pos;                                      \n\
 uniform mat4 model;                                                   \n\
-                                                                       \n\
-void main() {                                                           \n\
-	gl_Position = model * vec4(pos, 1.0);                                \n\
-}                                                                         \n\
+out vec4 vCol;														   \n\
+                                                                        \n\
+void main() {                                                            \n\
+	gl_Position = model * vec4(pos, 1.0);                                 \n\
+	// passando a cor para o fragment shader							   \n\
+	vCol = vec4(clamp(pos, 0.0f, 1.0f), 1.0);						        \n\
+}                                                                            \n\
 ";
 
 
@@ -82,14 +85,16 @@ void main() {                                                           \n\
 static const char* fragmentShader = "                                           \n\
 #version 330                                                                     \n\
                                                                                   \n\
-// diferente da entrada por layout, uniform é uma entrada em tempo de execução     \n\
-uniform vec3 triColor;															    \n\
-// saída do fragment shader, a cor final do pixel na tela                            \n\
-out vec4 color;                                                                       \n\
-                                                                                       \n\
-void main() {                                                                           \n\
-	color = vec4(triColor, 1.0);                                                         \n\
-}                                                                                         \n\
+in vec4 vCol; // recebendo a cor do vertex shader								   \n\
+																					\n\
+// diferente da entrada por layout, uniform é uma entrada em tempo de execução       \n\
+uniform vec3 triColor;															      \n\
+// saída do fragment shader, a cor final do pixel na tela                              \n\
+out vec4 color;                                                                         \n\
+                                                                                         \n\
+void main() {                                                                             \n\
+	color = vCol;                                                                          \n\
+}                                                                                           \n\
 ";
 
 void create_triangle() {
