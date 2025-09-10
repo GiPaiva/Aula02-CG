@@ -18,13 +18,15 @@ GLuint VAO, VBO, shaderProgram;
 // aqui estamos fazendo um programa (shader) em GLSL
 
 // Radiano
-float toRadian = 3.14159265358979323846 / 180.0f; // valor de pi dividido por 180 graus (conversão de graus para radiano)
+float toRadian = 3.1415f / 180.0f; // valor de pi dividido por 180 graus (conversão de graus para radiano)
 
 
-float direction = 0.0f; // direção do movimento do triângulo
-float directionSize = 0.01f; // tamanho do movimento do triângulo
+//float direction = 0.0f; // direção do movimento do triângulo
+//float directionSize = 0.01f; // tamanho do movimento do triângulo
 
-float triOffsetSize = 0.2f, triOffsetSizeMax = 1.2f, triOffsetSizeMin = 0.2f, triOffsetSizeIncrement = 0.1f; // tamanho do movimento do triângulo
+bool direction = false, directionSize = false;
+
+float triOffsetSize = 0.2f, triOffsetSizeMax = 1.2f, triOffsetSizeMin = 0.2f, triOffsetSizeIncrement = 0.005f; // tamanho do movimento do triângulo
 float triCurrentAngle = 0.0f, triAngleIncrement = 1.0f; // ângulo atual do triângulo e o incremento do ângulo (velocidade de rotação)
 
 
@@ -65,11 +67,11 @@ static const char* vertexShader = "                           \n\
 // passando um argumento para o inicio do programa (args do C//   \n\
 // estou passando um argumento de entrada na primeira posiçâo      \n\
 // esse argumento deve ser um vetor de duas posições                \n\
-layout(location=0) in vec2 pos;                                      \n\
+layout(location=0) in vec3 pos;                                      \n\
 uniform mat4 model;                                                   \n\
                                                                        \n\
 void main() {                                                           \n\
-	gl_Position = model * vec4(pos.x, pos.y, 0.0, 1.0);                  \n\
+	gl_Position = model * vec4(pos, 1.0);                                \n\
 }                                                                         \n\
 ";
 
@@ -91,10 +93,10 @@ void main() {                                                                   
 ";
 
 void create_triangle() {
-	GLfloat vertices[] = { // nosso buffer de vertíces
-		 0.0f ,  1.0f, // vertice 1 
-		-1.0f , -1.0f, // vertice 2
-		 1.0f , -1.0f  // vertice 3
+	GLfloat vertices[] = {   // nosso buffer de vertíces
+		 0.0f ,  1.0f, 0.0f, // vertice 1 
+		-1.0f , -1.0f, 0.0f, // vertice 2
+		 1.0f , -1.0f, 0.0f  // vertice 3
 	};
 
 	// iniciar um VAO
@@ -116,10 +118,10 @@ void create_triangle() {
 			// GL_STATIC_DRAW é a forma como vamos usar esse buffer (static porque não vamos mudar esses dados)
 			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); 
 			// agora vamos explicar como esses dados estão organizados
-			// 0 é o layout(location=0) que criamos lá em cima no vertex shader, 2 é porque são 2 posições por vértice (x e y), 
+			// 0 é o layout(location=0) que criamos lá em cima no vertex shader, 3 é porque são 3 posições por vértice (x, y e z), 
 			// gl_FLOAT é o tipo de dado, GL_FALSE é se os dados estão normalizados ou não (não estão), 
 			// 0 é o espaçamento entre os dados (0 porque são dados contínuos), 0 é o offset (0 porque começam do início)
-			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0); // explicando como interpretar esses dados
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0); // explicando como interpretar esses dados
 			// habilitar o atributo que criamos lá em cima
 			glEnableVertexAttribArray(0);  // location
 
