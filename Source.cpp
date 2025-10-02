@@ -30,6 +30,24 @@ GLfloat deltaTime = 0.0f, lastime = 0.0f;
 static const char* vertexLocation = "./Shaders/VertexShader.glsl";
 static const char* fragmentLocation = "./Shaders/FragmentShader.glsl";
 
+void CreateChao() {
+	GLfloat vertices[] = {
+		10.0f, -3.5f,  10.0f,	1.0f, 1.0f,  //Vértice 0 (x,y,z, u,v)
+	   -10.0f, -3.5f,  10.0f,  -1.0f, 1.0f,  //Vértice 1 (x,y,z, u,v)
+	    10.0f, -3.5f, -10.0f,	1.0f, 0.0f,   //Vértice 3 (x,y,z, u,v)
+	   -10.0f, -3.5f, -10.0f,   0.0f, 0.0f,  //Vértice 2 (x,y,z, u,v)
+	};
+
+	unsigned int indices[] = {
+		0,1,2, //Frente da pirâmide
+		3,2,1  //Base da pirâmide
+	};
+
+	Mesh* obj1 = new Mesh();
+	obj1->CreateMesh(vertices, indices, sizeof(vertices), sizeof(indices));
+	meshList.push_back(obj1);
+}
+
 void CreateTriangle() {
 	GLfloat vertices[] = {
 		0.0f, 1.0f, 0.0f,	0.5f, 1.0f,  //Vértice 0 (x,y,z, u,v)
@@ -50,8 +68,8 @@ void CreateTriangle() {
 	meshList.push_back(obj1);
 
 	Mesh* obj2 = new Mesh();
-	obj2->CreateMesh(vertices, indices, sizeof(vertices), sizeof(indices));
-	meshList.push_back(obj2);
+	obj1->CreateMesh(vertices, indices, sizeof(vertices), sizeof(indices));
+	meshList.push_back(obj1);
 }
 
 void CreateShader() {
@@ -66,6 +84,7 @@ int main() {
 
 	//Criar o Triangulo
 	CreateTriangle(); //Coloca os dados na memória da placa de vídeo
+	CreateChao(); //Coloca os dados na memória da placa de vídeo
 	CreateShader(); //Cria os Shaders
 
 	camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 8.0f);
@@ -121,9 +140,21 @@ int main() {
 			model = glm::mat4(1.0f); //cria uma matriz 4x4 colocando 1.0f em cada uma das posições
 			model = glm::translate(model, glm::vec3(0.0f, 0.75f, -2.5f)); //traduz o modelo para movimentar a posição (x,y,z)
 			model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
+			//model = glm::rotate(model, glm::radians(0), glm::vec3(0.0f, 1.0f, 0.0f));
 			glUniformMatrix4fv(shaderList[0].getUniformModel(), 1, GL_FALSE, glm::value_ptr(model));
 			dirtTexture.useTexture();
 			meshList[1]->RenderMesh();
+
+			/********************************
+			* Chao 1
+			*********************************/
+			model = glm::mat4(1.0f); //cria uma matriz 4x4 colocando 1.0f em cada uma das posições
+			model = glm::translate(model, glm::vec3(0.0f, 0.75f, -2.5f)); //traduz o modelo para movimentar a posição (x,y,z)
+			model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
+			//model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+			glUniformMatrix4fv(shaderList[0].getUniformModel(), 1, GL_FALSE, glm::value_ptr(model));
+			dirtTexture.useTexture();
+			meshList[2]->RenderMesh();
 		
 		glUseProgram(0); //Removo o Programa da memória
 
